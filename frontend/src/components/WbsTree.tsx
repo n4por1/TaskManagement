@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi } from '../api/client'
-import type { Task, TaskCreate } from '../types'
+import type { Task, TaskCreate, TaskStatus } from '../types'
 import { StatusBadge } from './StatusBadge'
 import { PriorityBadge } from './PriorityBadge'
 import { Modal } from './Modal'
 import { TaskForm } from './TaskForm'
+import { DueDateLabel } from './DueDate'
+
+const TASK_STATUSES: TaskStatus[] = ['未着手', '進行中', '待ち', '完了']
 
 interface Props {
   tasks: Task[]
@@ -18,6 +21,47 @@ interface TaskRowProps {
   depth: number
 }
 
+function StatusDropdown({
+  current,
+  onChange,
+}: {
+  current: TaskStatus
+  onChange: (s: TaskStatus) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  const handleBlur = (e: React.FocusEvent) => {
+    if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative" onBlur={handleBlur}>
+      <button
+        className="cursor-pointer focus:outline-none"
+        onClick={() => setOpen((o) => !o)}
+        title="ステータスを変更"
+      >
+        <StatusBadge status={current} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-28 rounded-lg border bg-white shadow-lg py-1">
+          {TASK_STATUSES.map((s) => (
+            <button
+              key={s}
+              className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 ${s === current ? 'font-semibold' : ''}`}
+              onClick={() => { onChange(s); setOpen(false) }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TaskRow({ task, goalId, depth }: TaskRowProps) {
   const [showAddChild, setShowAddChild] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -27,6 +71,7 @@ function TaskRow({ task, goalId, depth }: TaskRowProps) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['goal', goalId] })
     qc.invalidateQueries({ queryKey: ['tasks', goalId] })
+    qc.invalidateQueries({ queryKey: ['goals'] })
   }
 
   const createMutation = useMutation({
@@ -39,14 +84,18 @@ function TaskRow({ task, goalId, depth }: TaskRowProps) {
     onSuccess: () => { invalidate(); setShowEdit(false) },
   })
 
+  const statusMutation = useMutation({
+    mutationFn: (status: TaskStatus) => tasksApi.update(task.id, { status }),
+    onSuccess: invalidate,
+  })
+
   const deleteMutation = useMutation({
     mutationFn: () => tasksApi.delete(task.id),
     onSuccess: invalidate,
   })
 
   const isLeaf = task.children.length === 0
-  const canAddChild = depth < 2  // root=1, child=2 → max depth 2 means no more children at depth 2
-
+  const canAddChild = depth < 2
   const pct = Math.round(task.progress * 100)
 
   return (
@@ -54,7 +103,7 @@ function TaskRow({ task, goalId, depth }: TaskRowProps) {
       <div className={`flex items-start gap-2 rounded-lg px-3 py-2 hover:bg-gray-50 group ${depth === 1 ? 'border-l-2 border-blue-300' : 'border-l-2 border-gray-200'}`}>
         {/* Expand toggle */}
         <button
-          className="mt-0.5 w-4 shrink-0 text-gray-400 hover:text-gray-600"
+          className="mt-1 w-4 shrink-0 text-gray-400 hover:text-gray-600"
           onClick={() => setExpanded((e) => !e)}
         >
           {task.children.length > 0 ? (expanded ? '▾' : '▸') : '·'}
@@ -65,11 +114,13 @@ function TaskRow({ task, goalId, depth }: TaskRowProps) {
             <span className={`font-medium ${task.status === '完了' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
               {task.title}
             </span>
-            <StatusBadge status={task.status} />
+            {/* クイックステータス変更 */}
+            <StatusDropdown
+              current={task.status}
+              onChange={(s) => statusMutation.mutate(s)}
+            />
             <PriorityBadge priority={task.priority} />
-            {task.due_date && (
-              <span className="text-xs text-gray-400">{task.due_date}</span>
-            )}
+            <DueDateLabel dueDate={task.due_date} />
           </div>
           {task.description && (
             <p className="mt-0.5 text-xs text-gray-500 truncate">{task.description}</p>
