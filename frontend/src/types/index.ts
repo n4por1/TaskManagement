@@ -57,3 +57,13 @@ export interface TaskCreate {
 }
 
 export interface TaskUpdate extends Partial<TaskCreate> {}
+
+export interface SuggestedTask {
+  title: string
+  description: string
+  subtasks: string[]
+}
+
+export interface SuggestTasksResponse {
+  tasks: SuggestedTask[]
+}

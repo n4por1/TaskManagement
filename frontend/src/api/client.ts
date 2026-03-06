@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Goal, GoalCreate, GoalUpdate, Task, TaskCreate, TaskUpdate } from '../types'
+import type { Goal, GoalCreate, GoalUpdate, Task, TaskCreate, TaskUpdate, SuggestTasksResponse } from '../types'
 
 const http = axios.create({ baseURL: '/api' })
 
@@ -12,6 +12,8 @@ export const goalsApi = {
   update: (id: number, data: GoalUpdate) =>
     http.patch<Goal>(`/goals/${id}`, data).then((r) => r.data),
   delete: (id: number) => http.delete(`/goals/${id}`),
+  suggestTasks: (id: number) =>
+    http.post<SuggestTasksResponse>(`/goals/${id}/suggest-tasks`).then((r) => r.data),
 }
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────

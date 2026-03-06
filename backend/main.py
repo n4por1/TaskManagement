@@ -7,7 +7,7 @@ from routers import goals, tasks
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="TaskManagement API", version="0.1.0")
+app = FastAPI(title="TaskManagement API", version="0.1.0", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,

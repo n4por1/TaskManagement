@@ -37,7 +37,7 @@ def _propagate_parent(task: models.Task, db: Session):
         db.commit()
 
 
-@router.get("/", response_model=list[schemas.TaskOut])
+@router.get("", response_model=list[schemas.TaskOut])
 def list_tasks(
     goal_id: int | None = None,
     status: str | None = None,
@@ -51,7 +51,7 @@ def list_tasks(
     return [_enrich(t) for t in q.all()]
 
 
-@router.post("/", response_model=schemas.TaskOut, status_code=201)
+@router.post("", response_model=schemas.TaskOut, status_code=201)
 def create_task(payload: schemas.TaskCreate, db: Session = Depends(get_db)):
     if payload.status not in VALID_STATUSES:
         raise HTTPException(400, f"Invalid status: {payload.status}")
